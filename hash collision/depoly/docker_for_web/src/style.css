@@ -1,0 +1,139 @@
+body{
+background: url('./cmb.jpg') #fff no-repeat center center fixed;
+ user-select:none;
+-moz-user-select:none;
+-webkit-user-select:none;
+-ms-user-select:none;
+-webkit-background-size: cover;
+-moz-background-size: cover;
+-o-background-size: cover;
+background-size: cover;
+z-index:0;
+overflow:hidden;
+color:#21428d;
+font-family:Arial, monospace;
+font-size:16pt;
+font-weight:bold;
+
+}
+#console {
+z-index:44;
+padding-left:150px;
+margin-top:120px;
+height:70%;
+width:70%;
+display:block;
+
+
+}
+.footerbtns {position:fixed; bottom:10px; right:10px;}
+.accessGranted{
+position:fixed;
+background:#21428d;
+background-repeat:repeat;
+padding:20px;
+border:2px solid #7ab7d3;
+font-size:18pt;
+width:300px;
+height:180px;
+top: 50%;
+left: 50%;
+margin-top: -90px;
+margin-left: -160px;
+text-align:center;
+color:#7ab7d3;
+}
+.accessDenied{
+position:fixed;
+background:url(./denied.gif);
+background-repeat:repeat;
+padding:20px;
+width:300px;
+height:180px;
+top: 50%;
+left: 50%;
+margin-top: -90px;
+margin-left: -160px;
+text-align:center;
+color:#F00;
+}
+.securityBreach{
+position:fixed;
+background:url(./denied.gif);
+background-repeat:repeat;
+padding:20px;
+width:400px;
+height:320px;
+top: 50%;
+left: 50%;
+margin-top: -180px;
+margin-left: -200px;
+text-align:center;
+color:#F00;
+}
+.coldwar{
+position:fixed;
+border:2px solid #F00;
+top: 50%;
+left: 50%;
+margin-top: -200px;
+margin-left: -280px;
+/*display:none;*/
+text-align:center;
+color:#F00;
+}
+.radar{
+position:fixed;
+bottom: 10%;
+right: 5%;
+text-align:center;
+color:#F00;
+}
+.radar img {
+clear:both;
+width:450px;
+}
+.pony{
+position:fixed;
+right: 5%;
+bottom: 5%;
+margin-top: -64px;
+margin-left: -64px;
+z-index:499;
+}
+.pony img {
+width:128px;
+/*display:none;*/
+}
+.window{
+position:fixed;
+border:2px solid #F00;
+top: 50%;
+left: 50%;
+margin-top: -240px;
+margin-left: -320px;
+overflow:hidden;
+width:640px;
+height:480px;
+text-align:center;
+color:#F00;
+}
+ .center {
+position:fixed;
+height:100%;
+width:100%;
+z-index:-1;
+background-image:url('./style.css');
+background-repeat:no-repeat;
+background-position:center;
+}
+
+#button {
+   color: #000;
+
+background-color:#21428d;
+    text-decoration: none;
+    cursor: poiner;
+	font-family:Hardreq, monospace;
+     border:none;
+}

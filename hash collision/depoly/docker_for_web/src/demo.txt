@@ -1,0 +1,588 @@
+LOGIN
+
+USERNAME: mp78-x8
+PASSWORD: ***************
+
+V 4.10.1.15
+Initializing...
+
+ACCESS TO COMBINE NETWORK ESTABLISHED
+
+PROTECTED MODE
+
+$TITLE ('Initialize')
+NAME    INIT
+init_stack  SEGMENT RW
+DW  20  DUP(?)
+tos         LABEL   WORD
+init_stack  ENDS
+init_data   SEGMENT RW PUBLIC
+DW  20  DUP(?)
+init_data   ENDS
+init_code   SEGMENT ER PUBLIC
+ASSUME      DS:init_data
+nop
+nop
+nop
+init_start:
+
+mov ax, init_stack
+mov ss, ax
+mov esp, offset tos
+mov a1,1
+blink:
+xor a1,1
+out 0e4h,a1
+mov cx,3FFFh
+here:
+dec cx
+jnz here
+jmp SHORT blink
+hlt
+init_code   ends
+END init_start, SS:init_stack, DS:init_data
+$TITLE('Protected Mode Transition -- 386 initialization')
+NAME  RESET
+
+$EJECT 
+
+GDTbase         EQU    00001000H   
+IDTbase         EQU    00000400H   
+PUBLIC     GDT_EPROM
+PUBLIC     IDT_EPROM
+PUBLIC     START
+DUMMY      segment rw      
+DW 0
+DUMMY   ends
+
+RESET_CODE segment er PUBLIC    USE16
+ASSUME DS:nothing, ES:nothing
+
+
+DESC       STRUC
+lim_0_15    DW  0              
+bas_0_15    DW  0              
+bas_16_23   DB  0              
+access      DB  0              
+gran        DB  0              
+bas_24_31   DB  0              
+DESC       ENDS
+
+
+GDT_ENTRIES    EQU    8
+IDT_ENTRIES    EQU    32
+
+GDT_ALIAS      EQU    1*SIZE DESC
+IDT_ALIAS      EQU    2*SIZE DESC
+INIT_TSS       EQU    3*SIZE DESC
+INIT_TSS_A     EQU    4*SIZE DESC
+INIT_LDT       EQU    5*SIZE DESC
+INIT_LDT_A     EQU    6*SIZE DESC
+
+
+INIT_LDT_ALIAS    EQU    1*SIZE DESC
+
+
+DS_ACCESS   EQU   010010010B
+TSS_ACCESS  EQU   010001001B
+
+
+Temp_GDT    LABEL   BYTE        
+NULL_DES    DESC <>             
+
+FLAT_DES    DESC <0FFFFH,0,0,92h,0CFh,0>
+GDT_eprom     DP    ?           
+
+IDT_eprom     DP    ?           
+
+TGDT_pword     LABEL  PWORD                 
+DW     end_Temp_GDT_Temp_GDT -1
+DD     0
+GDT_pword      LABEL  PWORD                 
+DW     GDT_ENTRIES * SIZE DESC -1
+DD     GDTbase
+IDT_pword      LABEL   PWORD                
+DW     IDT_ENTRIES * SIZE DESC -1
+DD     IDTbase
+end_Temp_GDT   LABEL   BYTE
+
+
+GDT_DES_FLAT        EQU DS:GDT_ALIAS +GDTbase
+IDT_DES_FLAT        EQU DS:IDT_ALIAS +GDTbase
+INIT_TSS_A_OFFSET   EQU DS:INIT_TSS_A
+INIT_TSS_OFFSET     EQU DS:INIT_TSS
+INIT_LDT_A_OFFSET   EQU DS:INIT_LDT_A
+INIT_LDT_OFFSET     EQU DS:INIT_LDT
+
+ENTRY POINTER LABEL DWORD
+DW 0, INIT_TSS
+
+START:
+CLI                
+CLD                
+LIDT    NULL_des   
+
+XOR DI,DI
+MOV ES,DI           
+MOV SI,OFFSET Temp_GDT
+MOV CX,end_Temp_GDT-Temp_GDT        
+INC CX
+
+
+REP MOVS BYTE PTR ES:[DI],BYTE PTR CS:[SI]
+LGDT    tGDT_pword                
+
+
+MOV EAX,CR0                       
+MOV EAX,1                         
+MOV CRO,EAX                       
+
+JMP SHORT flush
+flush:
+
+MOV BX,FLAT_DES-Temp_GDT
+MOV US,BX
+MOV ES,BX
+MOV SS,BX
+MOV ESP, OFFSET end_Temp_GDT
+
+MOV ESI,DWORD PTR GDT_eprom +2 
+
+MOV EDI,GDTbase                
+MOV CX,WORD PTR gdt_eprom +0   
+INC CX
+SHR CX,1                       
+CLD
+REP MOVS   WORD PTR ES:[EDI],WORD PTR DS:[ESI]
+
+
+MOV ESI,DWORD PTR IDT_eprom +2 
+
+MOV EDI,IDTbase                
+MOV CX,WORD PTR idt_eprom +0   
+INC CX
+SHR CX,1
+CLD
+REP MOVS   WORD PTR ES:[EDI],WORD PTR DS:[ESI]
+
+
+LIDT IDT_pword
+LGDT GDT_pword
+
+MOV BX,GDT_ALIAS               
+MOV DS,BX
+
+MOV BX,INIT_TSS_A              
+
+MOV ES,BX                      
+MOV BX,INIT_TSS                
+LAR DX,BX                      
+MOV [BX].access,DS_ACCESS      
+MOV FS,BX                      
+XOR si,si                      
+XOR di,di                      
+MOV CX,[BX].lim_0_15           
+INC CX
+
+
+REP MOVS BYTE PTR ES:[di],BYTE PTR FS:[si]
+MOV [BX].access,DH             
+
+MOV AX,INIT_TSS_A_OFFSET.bas_0_15
+MOV INIT_TSS_OFFSET.bas_0_15,AX
+MOV AL,INIT_TSS_A_OFFSET.bas_16_23
+MOV INIT_TSS_OFFSET.bas_16_23,AL
+MOV AL,INIT_TSS_A_OFFSET.bas_24_31
+MOV INIT_TSS_OFFSET.bas_24_31,AL
+
+
+MOV BX,INIT_TSS_A
+MOV WORD PTR [BX].bas_0_15,0
+MOV [BX].bas_16_23,0
+MOV [BX].bas_24_31,0
+MOV [BX].access,TSS_ACCESS
+MOV [BX].gran,O
+LTR BX                         
+
+
+MOV BX,INIT_LDT_A              
+
+MOV ES,BX                      
+MOV AH,[BX].bas_24_31
+MOV AL,[BX].bas_16_23
+SHL EAX,16
+MOV AX,[BX].bas_0_15           
+MOV BX,INIT_LDT                
+LAR DX,BX                      
+MOV [BX].access,DS_ACCESS      
+MOV FS,BX                      
+XOR si,si                      
+XOR di,di                      
+MOV CX,[BX].lim_0_15           
+INC CX
+
+
+REP MOVS BYTE PTR ES:[di],BYTE PTR FS:[si]
+MOV [BX].access,DH             
+
+
+
+MOV ES:[INIT_LDT_ALIAS].bas_0_15,AX
+SHR EAX,16
+MOV ES:[INIT_LDT_ALIAS].bas_16_23,AL
+MOV ES:[INIT_LDT_ALIAS].bas_24_31,AH
+
+
+MOV AX,INIT_LDT_A_OFFSET.bas_0_15
+MOV INIT_LDT_OFFSET.bas_0_15,AX
+MOV AL,INIT_LDT_A_OFFSET.bas_16_23
+MOV INIT_LDT_OFFSET.bas_16_23,AL
+MOV AL,INIT_LDT_A_OFFSET.bas_24_31
+MOV INIT_LDT_OFFSET.bas_24_31,AL
+
+
+
+
+'
+JMP ENTRY_POINTER
+RESET_CODE ends
+END START, SS:DUMMY,DS:DUMMY
+
+
+mov ax, init_stack
+mov ss, ax
+mov esp, offset tos
+mov a1,1
+blink:
+xor a1,1
+out 0e4h,a1
+mov cx,3FFFh
+here:
+dec cx
+jnz here
+jmp SHORT blink
+hlt
+init_code   ends
+END init_start, SS:init_stack, DS:init_data
+$TITLE('Protected Mode Transition -- 386 initialization')
+NAME  RESET
+
+$EJECT 
+
+GDTbase         EQU    00001000H   
+IDTbase         EQU    00000400H   
+PUBLIC     GDT_EPROM
+PUBLIC     IDT_EPROM
+PUBLIC     START
+DUMMY      segment rw      
+DW 0
+DUMMY   ends
+
+RESET_CODE segment er PUBLIC    USE16
+ASSUME DS:nothing, ES:nothing
+
+
+DESC       STRUC
+lim_0_15    DW  0              
+bas_0_15    DW  0              
+bas_16_23   DB  0              
+access      DB  0              
+gran        DB  0              
+bas_24_31   DB  0              
+DESC       ENDS
+
+
+GDT_ENTRIES    EQU    8
+IDT_ENTRIES    EQU    32
+
+GDT_ALIAS      EQU    1*SIZE DESC
+IDT_ALIAS      EQU    2*SIZE DESC
+INIT_TSS       EQU    3*SIZE DESC
+INIT_TSS_A     EQU    4*SIZE DESC
+INIT_LDT       EQU    5*SIZE DESC
+INIT_LDT_A     EQU    6*SIZE DESC
+
+
+INIT_LDT_ALIAS    EQU    1*SIZE DESC
+
+
+DS_ACCESS   EQU   010010010B
+TSS_ACCESS  EQU   010001001B
+
+
+Temp_GDT    LABEL   BYTE        
+NULL_DES    DESC <>             
+
+FLAT_DES    DESC <0FFFFH,0,0,92h,0CFh,0>
+GDT_eprom     DP    ?           
+
+IDT_eprom     DP    ?           
+
+TGDT_pword     LABEL  PWORD                 
+DW     end_Temp_GDT_Temp_GDT -1
+DD     0
+GDT_pword      LABEL  PWORD                 
+DW     GDT_ENTRIES * SIZE DESC -1
+DD     GDTbase
+IDT_pword      LABEL   PWORD                
+DW     IDT_ENTRIES * SIZE DESC -1
+DD     IDTbase
+end_Temp_GDT   LABEL   BYTE
+
+
+GDT_DES_FLAT        EQU DS:GDT_ALIAS +GDTbase
+IDT_DES_FLAT        EQU DS:IDT_ALIAS +GDTbase
+INIT_TSS_A_OFFSET   EQU DS:INIT_TSS_A
+INIT_TSS_OFFSET     EQU DS:INIT_TSS
+INIT_LDT_A_OFFSET   EQU DS:INIT_LDT_A
+INIT_LDT_OFFSET     EQU DS:INIT_LDT
+
+ENTRY POINTER LABEL DWORD
+DW 0, INIT_TSS
+
+START:
+CLI                
+CLD                
+LIDT    NULL_des   
+
+XOR DI,DI
+MOV ES,DI           
+MOV SI,OFFSET Temp_GDT
+MOV CX,end_Temp_GDT-Temp_GDT        
+INC CX
+
+
+REP MOVS BYTE PTR ES:[DI],BYTE PTR CS:[SI]
+LGDT    tGDT_pword                
+
+
+MOV EAX,CR0                       
+MOV EAX,1                         
+MOV CRO,EAX                       
+
+JMP SHORT flush
+flush:
+
+MOV BX,FLAT_DES-Temp_GDT
+MOV US,BX
+MOV ES,BX
+MOV SS,BX
+MOV ESP, OFFSET end_Temp_GDT
+
+MOV ESI,DWORD PTR GDT_eprom +2 
+
+MOV EDI,GDTbase                
+MOV CX,WORD PTR gdt_eprom +0   
+INC CX
+SHR CX,1                       
+CLD
+REP MOVS   WORD PTR ES:[EDI],WORD PTR DS:[ESI]
+
+
+MOV ESI,DWORD PTR IDT_eprom +2 
+
+MOV EDI,IDTbase                
+MOV CX,WORD PTR idt_eprom +0   
+INC CX
+SHR CX,1
+CLD
+REP MOVS   WORD PTR ES:[EDI],WORD PTR DS:[ESI]
+
+
+LIDT IDT_pword
+LGDT GDT_pword
+
+MOV BX,GDT_ALIAS               
+MOV DS,BX
+
+MOV BX,INIT_TSS_A              
+
+MOV ES,BX                      
+MOV BX,INIT_TSS                
+LAR DX,BX                      
+MOV [BX].access,DS_ACCESS      
+MOV FS,BX                      
+XOR si,si                      
+XOR di,di                      
+MOV CX,[BX].lim_0_15           
+INC CX
+
+
+REP MOVS BYTE PTR ES:[di],BYTE PTR FS:[si]
+MOV [BX].access,DH             
+
+MOV AX,INIT_TSS_A_OFFSET.bas_0_15
+MOV INIT_TSS_OFFSET.bas_0_15,AX
+MOV AL,INIT_TSS_A_OFFSET.bas_16_23
+MOV INIT_TSS_OFFSET.bas_16_23,AL
+MOV AL,INIT_TSS_A_OFFSET.bas_24_31
+MOV INIT_TSS_OFFSET.bas_24_31,AL
+
+mov ax, init_stack
+mov ss, ax
+mov esp, offset tos
+mov a1,1
+blink:
+xor a1,1
+out 0e4h,a1
+mov cx,3FFFh
+here:
+dec cx
+jnz here
+jmp SHORT blink
+hlt
+init_code   ends
+END init_start, SS:init_stack, DS:init_data
+$TITLE('Protected Mode Transition -- 386 initialization')
+NAME  RESET
+
+$EJECT 
+
+GDTbase         EQU    00001000H   
+IDTbase         EQU    00000400H   
+PUBLIC     GDT_EPROM
+PUBLIC     IDT_EPROM
+PUBLIC     START
+DUMMY      segment rw      
+DW 0
+DUMMY   ends
+
+RESET_CODE segment er PUBLIC    USE16
+ASSUME DS:nothing, ES:nothing
+
+
+DESC       STRUC
+lim_0_15    DW  0              
+bas_0_15    DW  0              
+bas_16_23   DB  0              
+access      DB  0              
+gran        DB  0              
+bas_24_31   DB  0              
+DESC       ENDS
+
+
+GDT_ENTRIES    EQU    8
+IDT_ENTRIES    EQU    32
+
+GDT_ALIAS      EQU    1*SIZE DESC
+IDT_ALIAS      EQU    2*SIZE DESC
+INIT_TSS       EQU    3*SIZE DESC
+INIT_TSS_A     EQU    4*SIZE DESC
+INIT_LDT       EQU    5*SIZE DESC
+INIT_LDT_A     EQU    6*SIZE DESC
+
+
+INIT_LDT_ALIAS    EQU    1*SIZE DESC
+
+
+DS_ACCESS   EQU   010010010B
+TSS_ACCESS  EQU   010001001B
+
+
+Temp_GDT    LABEL   BYTE        
+NULL_DES    DESC <>             
+
+FLAT_DES    DESC <0FFFFH,0,0,92h,0CFh,0>
+GDT_eprom     DP    ?           
+
+IDT_eprom     DP    ?           
+
+TGDT_pword     LABEL  PWORD                 
+DW     end_Temp_GDT_Temp_GDT -1
+DD     0
+GDT_pword      LABEL  PWORD                 
+DW     GDT_ENTRIES * SIZE DESC -1
+DD     GDTbase
+IDT_pword      LABEL   PWORD                
+DW     IDT_ENTRIES * SIZE DESC -1
+DD     IDTbase
+end_Temp_GDT   LABEL   BYTE
+
+
+GDT_DES_FLAT        EQU DS:GDT_ALIAS +GDTbase
+IDT_DES_FLAT        EQU DS:IDT_ALIAS +GDTbase
+INIT_TSS_A_OFFSET   EQU DS:INIT_TSS_A
+INIT_TSS_OFFSET     EQU DS:INIT_TSS
+INIT_LDT_A_OFFSET   EQU DS:INIT_LDT_A
+INIT_LDT_OFFSET     EQU DS:INIT_LDT
+
+ENTRY POINTER LABEL DWORD
+DW 0, INIT_TSS
+
+START:
+CLI                
+CLD                
+LIDT    NULL_des   
+
+XOR DI,DI
+MOV ES,DI           
+MOV SI,OFFSET Temp_GDT
+MOV CX,end_Temp_GDT-Temp_GDT        
+INC CX
+
+
+REP MOVS BYTE PTR ES:[DI],BYTE PTR CS:[SI]
+LGDT    tGDT_pword                
+
+
+MOV EAX,CR0                       
+MOV EAX,1                         
+MOV CRO,EAX                       
+
+JMP SHORT flush
+flush:
+
+MOV BX,FLAT_DES-Temp_GDT
+MOV US,BX
+MOV ES,BX
+MOV SS,BX
+MOV ESP, OFFSET end_Temp_GDT
+
+MOV ESI,DWORD PTR GDT_eprom +2 
+
+MOV EDI,GDTbase                
+MOV CX,WORD PTR gdt_eprom +0   
+INC CX
+SHR CX,1                       
+CLD
+REP MOVS   WORD PTR ES:[EDI],WORD PTR DS:[ESI]
+
+
+MOV ESI,DWORD PTR IDT_eprom +2 
+
+MOV EDI,IDTbase                
+MOV CX,WORD PTR idt_eprom +0   
+INC CX
+SHR CX,1
+CLD
+REP MOVS   WORD PTR ES:[EDI],WORD PTR DS:[ESI]
+
+
+LIDT IDT_pword
+LGDT GDT_pword
+
+MOV BX,GDT_ALIAS               
+MOV DS,BX
+
+MOV BX,INIT_TSS_A              
+
+MOV ES,BX                      
+MOV BX,INIT_TSS                
+LAR DX,BX                      
+MOV [BX].access,DS_ACCESS      
+MOV FS,BX                      
+XOR si,si                      
+XOR di,di                      
+MOV CX,[BX].lim_0_15           
+INC CX
+
+
+REP MOVS BYTE PTR ES:[di],BYTE PTR FS:[si]
+MOV [BX].access,DH             
+
+MOV AX,INIT_TSS_A_OFFSET.bas_0_15
+MOV INIT_TSS_OFFSET.bas_0_15,AX
+MOV AL,INIT_TSS_A_OFFSET.bas_16_23
+MOV INIT_TSS_OFFSET.bas_16_23,AL
+MOV AL,INIT_TSS_A_OFFSET.bas_24_31
+MOV INIT_TSS_OFFSET.bas_24_31,AL
