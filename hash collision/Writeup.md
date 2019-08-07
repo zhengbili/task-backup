@@ -1,4 +1,5 @@
-## hash collision
+## Title
+hash collision
 
 ## Tools
 - [crc32](https://github.com/theonlypwner/crc32)
