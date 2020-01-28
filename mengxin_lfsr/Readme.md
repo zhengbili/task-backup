@@ -13,7 +13,7 @@ Crypto
 offline
 
 ### Flag
-SUSCTF{1111010011001101}
+
 
 ### Score
 500
